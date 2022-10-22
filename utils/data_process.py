@@ -12,9 +12,12 @@ class DataProcessing:
 
     @staticmethod
     def load_pc_kitti(pc_path):
-        scan = np.fromfile(pc_path, dtype=np.float32)
-        scan = scan.reshape((-1, 4))
+        #scan = np.fromfile(pc_path, dtype=np.float32)
+        #scan = scan.reshape((-1, 4))
+        scan = np.fromfile(pc_path, dtype=np.float)
+        scan = scan.reshape((-1, 6))
         points = scan[:, 0:3]  # get xyz
+        print(points)
         return points
 
     @staticmethod

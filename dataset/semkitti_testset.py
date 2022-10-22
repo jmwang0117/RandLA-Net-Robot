@@ -12,7 +12,7 @@ from tqdm import tqdm
 class SemanticKITTI(torch_data.IterableDataset):
     def __init__(self, mode, test_id=None, batch_size=20, data_list=None):
         self.name = 'SemanticKITTI'
-        self.dataset_path = '/tmp2/tsunghan/PCL_Seg_data/sequences_0.06'
+        self.dataset_path = '/home/RandLA-Net-pytorch/robot'
         self.batch_size = batch_size
         self.num_classes = cfg.num_classes
         self.ignored_labels = np.sort([0])
@@ -24,19 +24,39 @@ class SemanticKITTI(torch_data.IterableDataset):
         else:
             self.data_list = data_list
         self.data_list = sorted(self.data_list)
+        # import pdb
+        # pdb.set_trace()
+        self.data_list = self.data_list[0]
 
     def init_prob(self):
         self.possibility = []
         self.min_possibility = []
+        # import pdb
+        # pdb.set_trace()
+        seq_id = self.data_list[0]
+        frame_id = self.data_list[1]
+        xyz_file = join(self.dataset_path, seq_id, 'velodyne', frame_id + '.npy')
+        print(xyz_file)
+        points = np.load(xyz_file)
+        # import pdb
+        # pdb.set_trace()
+        os.remove(xyz_file)
+        self.possibility += [np.random.rand(points.shape[0]) * 1e-3]
+        self.min_possibility += [float(np.min(self.possibility[-1]))]
+        return points
 
-        for test_file_name in tqdm(self.data_list):
-            seq_id = test_file_name[0]
-            frame_id = test_file_name[1]
-            xyz_file = join(self.dataset_path, seq_id, 'velodyne', frame_id + '.npy')
-            points = np.load(xyz_file)
-
-            self.possibility += [np.random.rand(points.shape[0]) * 1e-3]
-            self.min_possibility += [float(np.min(self.possibility[-1]))]
+        # self.possibility = []
+        # self.min_possibility = []
+        #
+        # for test_file_name in tqdm(self.data_list):
+        #     seq_id = test_file_name[0]
+        #     frame_id = test_file_name[1]
+        #     xyz_file = join(self.dataset_path, seq_id, 'velodyne', frame_id + '.npy')
+        #     print(xyz_file)
+        #     points = np.load(xyz_file)
+        #     os.remove(xyz_file)
+        #     self.possibility += [np.random.rand(points.shape[0]) * 1e-3]
+        #     self.min_possibility += [float(np.min(self.possibility[-1]))]
 
     def __iter__(self):
         return zip(*[self.spatially_regular_gen() for _ in range(self.batch_size)])
@@ -58,8 +78,8 @@ class SemanticKITTI(torch_data.IterableDataset):
             yield [selected_pc, selected_labels, selected_idx, np.array([cloud_ind], dtype=np.int32)]
 
     def get_data(self, file_path):
-        seq_id = file_path[0]
-        frame_id = file_path[1]
+        seq_id = self.data_list[0]
+        frame_id = self.data_list[1]
 
         kd_tree_path = join(self.dataset_path, seq_id, 'KDTree', frame_id + '.pkl')
         # read pkl with search tree

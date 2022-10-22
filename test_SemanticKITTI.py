@@ -20,13 +20,12 @@ np.random.seed(0)
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument('--infer_type', default='sub', type=str, choices=['all', 'sub'], help='Infer ALL or just infer Subsample')
-parser.add_argument('--checkpoint_path', default=None, help='Model checkpoint path [default: None]')
-parser.add_argument('--test_id', default='08', type=str, help='Predicted sequence id [default: 08]')
-parser.add_argument('--result_dir', default='result/', help='Dump dir to save prediction [default: result/]')
+parser.add_argument('--checkpoint_path', default='/home/RandLA-Net-pytorch/pretain_model/checkpoint.tar', help='Model checkpoint path [default: None]')
+parser.add_argument('--test_id', default='100', type=str, help='Predicted sequence id [default: 08]')
+parser.add_argument('--result_dir', default='/home/RandLA-Net-pytorch/result', help='Dump dir to save prediction [default: result/]')
 parser.add_argument('--yaml_config', default='utils/semantic-kitti.yaml', help='semantic-kitti.yaml path')
-parser.add_argument('--batch_size', type=int, default=30, help='Batch Size during training [default: 30]')
-parser.add_argument('--index_to_label', action='store_true',
-                    help='Set index-to-label flag when inference / Do not set it on seq 08')
+parser.add_argument('--batch_size', type=int, default=2, help='Batch Size during training [default: 30]')
+parser.add_argument('--index_to_label', action='store_true', help='Set index-to-label flag when inference / Do not set it on seq 08')
 FLAGS = parser.parse_args()
 
 
@@ -43,18 +42,9 @@ class Tester:
         # load yaml file
         self.remap_lut = self.load_yaml(FLAGS.yaml_config)
 
-        # get_dataset & dataloader
-        test_dataset = SemanticKITTI('test', test_id=FLAGS.test_id, batch_size=FLAGS.batch_size)
-
-        self.test_loader = DataLoader(
-            test_dataset,
-            batch_size=None,
-            collate_fn=test_dataset.collate_fn,
-            pin_memory=True,
-            num_workers=0
-        )
         # Network & Optimizer
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print('CUDA available: ' + str(torch.cuda.is_available()))
         self.net = Network(cfg)
         self.net.to(device)
 
@@ -63,16 +53,22 @@ class Tester:
         if CHECKPOINT_PATH is not None and os.path.isfile(CHECKPOINT_PATH):
             checkpoint = torch.load(CHECKPOINT_PATH)
             self.net.load_state_dict(checkpoint['model_state_dict'])
+        print("load model")
+    def get_dataset(self):
+        # get_dataset & dataloader
+        test_dataset = SemanticKITTI('test', test_id=FLAGS.test_id, batch_size=FLAGS.batch_size)
 
-        # Multiple GPU Testing
-        if torch.cuda.device_count() > 1:
-            self.logger.info("Let's use %d GPUs!" % (torch.cuda.device_count()))
-            # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-            self.net = nn.DataParallel(self.net)
+        self.test_loader = DataLoader(
+            test_dataset,
+            batch_size=None,
+            collate_fn=test_dataset.collate_fn,
+            pin_memory=True,
+            num_workers=0)
 
         self.test_dataset = test_dataset
         # Initialize testing probability
-        self.test_dataset.init_prob()
+        self.point_xyz = self.test_dataset.init_prob()
+        #print(self.point_xyz)
         self.test_probs = self.init_prob()
         self.test_smooth = 0.98
 
@@ -160,7 +156,12 @@ class Tester:
             else:   # 0 - 19
                 name = self.test_dataset.data_list[j][1] + '.npy'
                 output_path = os.path.join(root_dir, name)
-                np.save(output_path, pred)
+                #np.save(output_path, pred)
+                print(output_path)
+                points_predictions = np.column_stack((self.point_xyz, pred))
+                
+                np.save(output_path, points_predictions)
+                print("Prediction complete:" + str(self.test_dataset.data_list[j][1]))
 
     def remap(self, label):
         upper_half = label >> 16      # get upper half for instances
@@ -171,10 +172,10 @@ class Tester:
         return label
 
 
-def main():
-    tester = Tester()
-    tester.test()
-
-
-if __name__ == '__main__':
-    main()
+# def main():
+#     tester = Tester()
+#     tester.test()
+#
+#
+# if __name__ == '__main__':
+#     main()
