@@ -1,5 +1,4 @@
-# RandLA-Net-pytorch
-
+# RandLA-Net in robot system
 This repository contains the implementation of [RandLA-Net (CVPR 2020 Oral)](https://arxiv.org/abs/1911.11236) in PyTorch.
 - We only support SemanticKITTI dataset now. (Welcome everyone to develop together and raise PR)
 - Our model is almost as good as the original implementation. (Validation set : Our 52.9% mIoU vs original 53.1%)
